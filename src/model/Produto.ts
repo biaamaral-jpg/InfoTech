@@ -1,6 +1,5 @@
-// Importa o tipo ProdutoDTO, que define a estrutura de dados de um produto
+
 import type ProdutoDTO from "../dto/ProdutoDTO.js";
-// Importa a classe DatabaseModel, responsável por gerenciar a conexão com o banco de dados
 import { DatabaseModel } from "./DatabaseModel.js";
 
 const database = new DatabaseModel().pool;
@@ -17,7 +16,6 @@ class Produto {
     private ativo: boolean = true;
     private data_cadastro?: Date | string;
 
-    // Construtor: chamado automaticamente ao criar um novo objeto Produto
     constructor(
         _id_categoria: number,
         _codigo: string,
