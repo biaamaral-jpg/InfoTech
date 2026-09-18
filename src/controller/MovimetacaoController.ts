@@ -66,43 +66,75 @@ class MovimentacaoController {
    
     static async novo(req: Request, res: Response): Promise<Response> {
         try {
-            const { id_produto, id_categoria, codigo, nome, descricao, preco_unitario, quantidade } = req.body;
+            const body = req.body ?? {};
 
-           
-            if (!id_categoria || !codigo || !nome || preco_unitario === undefined || quantidade === undefined) {
+            const id_produto = Number(body.id_produto ?? body.idProduto ?? 0);
+            const id_movimentacao_origem = body.id_movimentacao_origem ?? body.idMovimentacaoOrigem ?? null;
+            const motivo_movimentacao = String(body.motivo_movimentacao ?? body.motivo ?? body.motivoMovimentacao ?? "").trim();
+            const tipo_movimentacao = String(body.tipo_movimentacao ?? body.tipo ?? body.tipoMovimentacao ?? "").trim();
+            const quantidade = Number(body.quantidade ?? body.qtd ?? 0);
+            const preco_unitario = Number(body.preco_unitario ?? body.precoUnitario ?? 0);
+            const valor_total = Number(body.valor_total ?? body.valorTotal ?? (Number.isFinite(quantidade) && Number.isFinite(preco_unitario) ? quantidade * preco_unitario : 0));
+            const observacao = String(body.observacao ?? body.obs ?? "").trim();
+            const data_movimentacao = body.data_movimentacao ?? body.dataMovimentacao ?? new Date();
+
+            const tipoNormalizado = tipo_movimentacao.toUpperCase();
+            const motivoNormalizado = motivo_movimentacao.toUpperCase();
+            const tiposPermitidos = ["ENTRADA", "SAIDA", "CORRECAO"];
+
+            if (!tiposPermitidos.includes(tipoNormalizado)) {
                 return res.status(400).json({
-                    mensagem: "Campos obrigatórios incompletos: id_produto, id_categoria, codigo, nome, preco_unitario e quantidade devem ser informados."
+                    mensagem: "Tipo de movimentação inválido. Use: ENTRADA, SAIDA ou CORRECAO."
                 });
             }
 
-           
-            if (preco_unitario < 0) {
-                return res.status(400).json({ mensagem: "O preço unitário não pode ser um valor negativo." });
+            if (tipoNormalizado === "CORRECAO") {
+                if (motivoNormalizado !== "CORRECAO") {
+                    return res.status(400).json({
+                        mensagem: "Movimentação de correção exige motivo 'CORRECAO'."
+                    });
+                }
+
+                if (!id_movimentacao_origem || Number(id_movimentacao_origem) <= 0) {
+                    return res.status(400).json({
+                        mensagem: "Movimentações do tipo CORRECAO exigem id_movimentacao_origem informado."
+                    });
+                }
             }
 
-            
+            if (!id_produto || !motivo_movimentacao || !tipo_movimentacao || !Number.isFinite(quantidade) || !Number.isFinite(preco_unitario)) {
+                return res.status(400).json({
+                    mensagem: "Campos obrigatórios incompletos: id_produto, motivo_movimentacao, tipo_movimentacao, quantidade e preco_unitario devem ser informados."
+                });
+            }
+
             if (quantidade < 0) {
                 return res.status(400).json({ mensagem: "A quantidade não pode ser um valor negativo." });
             }
 
-           
-            const movimentacaoExistente = await Movimentacao.buscarPorCodigo(codigo);
-            if (movimentacaoExistente !== null) {
-                return res.status(409).json({ mensagem: "Já existe uma movimentação cadastrada com este código." });
+            if (preco_unitario < 0) {
+                return res.status(400).json({ mensagem: "O preço unitário não pode ser um valor negativo." });
             }
 
-      
-            const novoMovimentacao = new Movimentacao(
+            if (valor_total < 0) {
+                return res.status(400).json({ mensagem: "O valor total não pode ser negativo." });
+            }
+
+            const novaMovimentacao = new Movimentacao(
+                0,
                 id_produto,
-                id_categoria,
-                codigo, 
-                nome,
-               preco_unitario,
-                quantidade
+                Number(id_movimentacao_origem) || undefined,
+                motivoNormalizado,
+                tipoNormalizado,
+                quantidade,
+                preco_unitario,
+                valor_total,
+                observacao,
+                data_movimentacao,
+                true
             );
 
-        
-            const cadastroSucesso = await Movimentacao.cadastrarMovimentacao(novoMovimentacao);
+            const cadastroSucesso = await Movimentacao.cadastrarMovimentacao(novaMovimentacao);
 
             if (cadastroSucesso) {
                 return res.status(201).json({ mensagem: "Movimentação cadastrada com sucesso!" });
@@ -142,33 +174,69 @@ class MovimentacaoController {
     static async atualizar(req: Request, res: Response): Promise<Response> {
         try {
             const id_movimentacao = parseInt(req.params.id_movimentacao as string, 10);
-            const { id_categoria, codigo, nome, descricao, preco_unitario, quantidade_minima } = req.body;
+            const body = req.body ?? {};
+
+            const id_produto = body.id_produto ?? body.idProduto;
+            const id_movimentacao_origem = body.id_movimentacao_origem ?? body.idMovimentacaoOrigem ?? null;
+            const motivo_movimentacao = body.motivo_movimentacao ?? body.motivo ?? body.motivoMovimentacao;
+            const tipo_movimentacao = body.tipo_movimentacao ?? body.tipo ?? body.tipoMovimentacao;
+            const quantidade = body.quantidade ?? body.qtd;
+            const preco_unitario = body.preco_unitario ?? body.precoUnitario;
+            const valor_total = body.valor_total ?? body.valorTotal;
+            const observacao = body.observacao ?? body.obs;
+            const data_movimentacao = body.data_movimentacao ?? body.dataMovimentacao;
 
             if (isNaN(id_movimentacao)) {
                 return res.status(400).json({ mensagem: "O ID da movimentação fornecido é inválido." });
             }
 
-            // Validações no backend
-            if (preco_unitario !== undefined && preco_unitario < 0) {
+            const tipoNormalizado = String(tipo_movimentacao ?? "").trim().toUpperCase();
+            const motivoNormalizado = String(motivo_movimentacao ?? "").trim().toUpperCase();
+            const tiposPermitidos = ["ENTRADA", "SAIDA", "CORRECAO"];
+
+            if (tipo_movimentacao !== undefined && !tiposPermitidos.includes(tipoNormalizado)) {
+                return res.status(400).json({
+                    mensagem: "Tipo de movimentação inválido. Use: ENTRADA, SAIDA ou CORRECAO."
+                });
+            }
+
+            if (tipoNormalizado === "CORRECAO") {
+                if (motivoNormalizado !== "CORRECAO") {
+                    return res.status(400).json({
+                        mensagem: "Movimentação de correção exige motivo 'CORRECAO'."
+                    });
+                }
+
+                if (!id_movimentacao_origem || Number(id_movimentacao_origem) <= 0) {
+                    return res.status(400).json({
+                        mensagem: "Movimentações do tipo CORRECAO exigem id_movimentacao_origem informado."
+                    });
+                }
+            }
+
+            if (quantidade !== undefined && Number(quantidade) < 0) {
+                return res.status(400).json({ mensagem: "A quantidade não pode ser um valor negativo." });
+            }
+
+            if (preco_unitario !== undefined && Number(preco_unitario) < 0) {
                 return res.status(400).json({ mensagem: "O preço unitário não pode ser um valor negativo." });
             }
 
-            if (quantidade_minima !== undefined && quantidade_minima < 0) {
-                return res.status(400).json({ mensagem: "A quantidade mínima não pode ser um valor negativo." });
-            }
-
-            // Instancia o produto e seta o ID
-            const produtoAtualizar = new Movimentacao(
-                id_categoria,
-                codigo,
-                nome,
-                descricao,
-                preco_unitario,
-                quantidade_minima
+            const movimentacaoAtualizar = new Movimentacao(
+                id_movimentacao,
+                id_produto ?? 0,
+                Number(id_movimentacao_origem) || undefined,
+                motivoNormalizado || "",
+                tipoNormalizado || "",
+                Number(quantidade ?? 0),
+                Number(preco_unitario ?? 0),
+                Number(valor_total ?? (Number(quantidade ?? 0) * Number(preco_unitario ?? 0))),
+                observacao ?? "",
+                data_movimentacao,
+                true
             );
-            produtoAtualizar.setIdProduto(id_movimentacao);
 
-            const atualizado = await Movimentacao.atualizarMovimentacao(produtoAtualizar);
+            const atualizado = await Movimentacao.atualizarMovimentacao(movimentacaoAtualizar);
 
             if (atualizado) {
                 return res.status(200).json({ mensagem: "Movimentação atualizada com sucesso!" });

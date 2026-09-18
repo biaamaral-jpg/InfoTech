@@ -68,7 +68,7 @@ class Categoria {
         const listaDeCategorias: Array<CategoriaDTO> = [];
 
         try {
-            const querySelectCategoria = `SELECT * FROM categoria WHERE ativo = TRUE ORDER BY nome;`;
+            const querySelectCategoria = `SELECT * FROM categoria ORDER BY nome;`;
             const respostaBD = await database.query(querySelectCategoria);
 
             for (const categoria of respostaBD.rows) {
@@ -76,7 +76,7 @@ class Categoria {
                     id_categoria: categoria.id_categoria,
                     nome: categoria.nome,
                     descricao: categoria.descricao,
-                    ativo: categoria.ativo,
+                    ativo: categoria.ativo ?? true,
                     data_cadastro: categoria.data_cadastro,
                 };
 
@@ -109,7 +109,7 @@ class Categoria {
                 id_categoria: respostaBD.rows[0].id_categoria,
                 nome: respostaBD.rows[0].nome,
                 descricao: respostaBD.rows[0].descricao,
-                ativo: respostaBD.rows[0].ativo,
+                ativo: respostaBD.rows[0].ativo ?? true,
                 data_cadastro: respostaBD.rows[0].data_cadastro,
             };
 
@@ -139,7 +139,7 @@ class Categoria {
                 id_categoria: respostaBD.rows[0].id_categoria,
                 nome: respostaBD.rows[0].nome,
                 descricao: respostaBD.rows[0].descricao,
-                ativo: respostaBD.rows[0].ativo,
+                ativo: respostaBD.rows[0].ativo ?? true,
                 data_cadastro: respostaBD.rows[0].data_cadastro,
             };
 
@@ -188,16 +188,10 @@ class Categoria {
      */
     static async removerCategoria(id_categoria: number): Promise<boolean> {
         try {
-            const categoria: CategoriaDTO | null = await this.listarCategoria(id_categoria);
+            const queryDesativarCategoria = `DELETE FROM categoria WHERE id_categoria = $1;`;
+            const result = await database.query(queryDesativarCategoria, [id_categoria]);
 
-            if (categoria && categoria.ativo) {
-                const queryDesativarCategoria = `UPDATE categoria SET ativo = FALSE WHERE id_categoria = $1;`;
-                const result = await database.query(queryDesativarCategoria, [id_categoria]);
-
-                return result.rowCount !== 0;
-            }
-
-            return false;
+            return result.rowCount !== 0;
         } catch (error) {
             console.error(`Erro ao desativar categoria: ${error}`);
             return false;
@@ -213,26 +207,26 @@ class Categoria {
         try {
             const categoriaConsulta: CategoriaDTO | null = await this.listarCategoria(categoria.getIdCategoria());
 
-            if (categoriaConsulta && categoriaConsulta.ativo) {
-                const queryAtualizarCategoria = `
+            if (!categoriaConsulta) {
+                return false;
+            }
+
+            const queryAtualizarCategoria = `
                     UPDATE categoria
                     SET nome = $1,
-                        descricao = $2,
-                        ativo = $3
-                    WHERE id_categoria = $4;`;
+                        descricao = $2
+                    WHERE id_categoria = $3;`;
 
-                const valores = [
-                    categoria.getNome(),
-                    categoria.getDescricao(),
-                    categoria.getAtivo(),
-                    categoria.getIdCategoria()
-                ];
+            const valores = [
+                categoria.getNome(),
+                categoria.getDescricao(),
+                categoria.getIdCategoria()
+            ];
 
-                const respostaBD = await database.query(queryAtualizarCategoria, valores);
+            const respostaBD = await database.query(queryAtualizarCategoria, valores);
 
-                if (respostaBD.rowCount !== 0) {
-                    return true;
-                }
+            if (respostaBD.rowCount !== 0) {
+                return true;
             }
 
             return false;

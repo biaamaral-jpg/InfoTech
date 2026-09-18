@@ -1,4 +1,3 @@
-
 import type ProdutoDTO from "../dto/ProdutoDTO.js";
 import { DatabaseModel } from "./DatabaseModel.js";
 
@@ -111,7 +110,7 @@ class Produto {
         let listaDeProdutos: Array<ProdutoDTO> = [];
 
         try {
-            const querySelectProduto = `SELECT * FROM produto WHERE ativo = TRUE ORDER BY nome;`;
+            const querySelectProduto = `SELECT * FROM produto ORDER BY nome;`;
             const respostaBD = await database.query(querySelectProduto);
 
             for (const produto of respostaBD.rows) {
@@ -124,7 +123,7 @@ class Produto {
                     preco_unitario: produto.preco_unitario,
                     quantidade_disponivel: produto.quantidade_disponivel,
                     quantidade_minima: produto.quantidade_minima,
-                    ativo: produto.ativo,
+                    ativo: produto.ativo ?? true,
                     data_cadastro: produto.data_cadastro
                 };
 
@@ -162,7 +161,7 @@ class Produto {
                 preco_unitario: respostaBD.rows[0].preco_unitario,
                 quantidade_disponivel: respostaBD.rows[0].quantidade_disponivel,
                 quantidade_minima: respostaBD.rows[0].quantidade_minima,
-                ativo: respostaBD.rows[0].ativo,
+                ativo: respostaBD.rows[0].ativo ?? true,
                 data_cadastro: respostaBD.rows[0].data_cadastro
             };
 
@@ -197,7 +196,7 @@ class Produto {
                 preco_unitario: respostaBD.rows[0].preco_unitario,
                 quantidade_disponivel: respostaBD.rows[0].quantidade_disponivel,
                 quantidade_minima: respostaBD.rows[0].quantidade_minima,
-                ativo: respostaBD.rows[0].ativo,
+                ativo: respostaBD.rows[0].ativo ?? true,
                 data_cadastro: respostaBD.rows[0].data_cadastro
             };
 
@@ -250,16 +249,10 @@ class Produto {
      */
     static async removerProduto(id_produto: number): Promise<boolean> {
         try {
-            const produto: ProdutoDTO | null = await this.listarProduto(id_produto);
+            const queryDesativarProduto = `DELETE FROM produto WHERE id_produto = $1;`;
+            const result = await database.query(queryDesativarProduto, [id_produto]);
 
-            if (produto && produto.ativo) {
-                const queryDesativarProduto = `UPDATE produto SET ativo = FALSE WHERE id_produto = $1;`;
-                const result = await database.query(queryDesativarProduto, [id_produto]);
-
-                return result.rowCount !== 0;
-            }
-
-            return false;
+            return result.rowCount !== 0;
         } catch (error) {
             console.error(`Erro ao desativar produto: ${error}`);
             return false;
@@ -275,8 +268,11 @@ class Produto {
         try {
             const produtoConsulta: ProdutoDTO | null = await this.listarProduto(produto.getIdProduto());
 
-            if (produtoConsulta && produtoConsulta.ativo) {
-                const queryAtualizarProduto = `
+            if (!produtoConsulta) {
+                return false;
+            }
+
+            const queryAtualizarProduto = `
                     UPDATE produto 
                     SET id_categoria = $1,
                         codigo = $2,
@@ -286,21 +282,20 @@ class Produto {
                         quantidade_minima = $6
                     WHERE id_produto = $7;`;
 
-                const valores = [
-                    produto.getIdCategoria(),
-                    produto.getCodigo().toUpperCase(),
-                    produto.getNome().toUpperCase(),
-                    produto.getDescricao(),
-                    produto.getPrecoUnitario(),
-                    produto.getQuantidadeMinima(),
-                    produto.getIdProduto()
-                ];
+            const valores = [
+                produto.getIdCategoria(),
+                produto.getCodigo().toUpperCase(),
+                produto.getNome().toUpperCase(),
+                produto.getDescricao(),
+                produto.getPrecoUnitario(),
+                produto.getQuantidadeMinima(),
+                produto.getIdProduto()
+            ];
 
-                const respostaBD = await database.query(queryAtualizarProduto, valores);
+            const respostaBD = await database.query(queryAtualizarProduto, valores);
 
-                if (respostaBD.rowCount !== 0) {
-                    return true;
-                }
+            if (respostaBD.rowCount !== 0) {
+                return true;
             }
 
             return false;
