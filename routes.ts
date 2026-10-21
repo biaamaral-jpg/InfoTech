@@ -2,6 +2,7 @@ import { Router, type Request, type Response } from "express";
 
 import ProdutoController from "./src/controller/ProdutoController.js";
 import MovimentacaoController from "./src/controller/MovimetacaoController.js";
+import CategoriaController from "./src/controller/CategoriaController.js";
 
 
 const router = Router();
@@ -46,6 +47,27 @@ router.get('/produtos/:id_produto', ProdutoController.produtoPorId);
 router.post('/produtos', ProdutoController.novo);
 router.delete('/produtos/:id_produto', ProdutoController.remover);
 router.put('/produtos/:id_produto', ProdutoController.atualizar);
+
+router.get('/api/categorias', CategoriaController.todos);
+router.get('/api/categorias/:id_categoria', CategoriaController.categoriaPorId);
+router.get('/api/categorias/nome/:nome', CategoriaController.categoriaPorNome);
+router.post('/api/categorias', CategoriaController.novo);
+router.delete('/api/categorias/:id_categoria', CategoriaController.remover);
+router.put('/api/categorias/:id_categoria', CategoriaController.atualizar);
+
+router.get('/categorias', CategoriaController.todos);
+router.get('/categorias/:id_categoria', CategoriaController.categoriaPorId);
+router.get('/categorias/nome/:nome', CategoriaController.categoriaPorNome);
+router.post('/categorias', CategoriaController.novo);
+router.delete('/categorias/:id_categoria', CategoriaController.remover);
+router.put('/categorias/:id_categoria', CategoriaController.atualizar);
+
+router.get('/categoria', CategoriaController.todos);
+router.get('/categoria/:id_categoria', CategoriaController.categoriaPorId);
+router.get('/categoria/nome/:nome', CategoriaController.categoriaPorNome);
+router.post('/categoria', CategoriaController.novo);
+router.delete('/categoria/:id_categoria', CategoriaController.remover);
+router.put('/categoria/:id_categoria', CategoriaController.atualizar);
 
 router.get('/api/movimentacao', MovimentacaoController.todos);
 router.get('/api/movimentacao/:id_movimentacao', MovimentacaoController.MovimentacaoPorId);
